@@ -26,6 +26,7 @@ spec:
         - --insecure
         - --pihole-host=10.1.1.5
         - --pihole-token=$(PIHOLE_TOKEN)
+        - --ingress-auto
         name: pifrost
         env:
         - name: PIHOLE_TOKEN
