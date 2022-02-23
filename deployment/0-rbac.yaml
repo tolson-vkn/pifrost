@@ -5,27 +5,28 @@ metadata:
   name: pifrost
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+kind: ClusterRole
 metadata:
   namespace: pifrost
   name: pifrost-reader
 rules:
 - apiGroups: [""]
-  resources: ["pods"]
+  resources: ["pods", "services", "namespaces"]
   verbs: ["get", "watch", "list"]
-- apiGroups: ["networking"]
+- apiGroups: ["networking.k8s.io"]
   resources: ["ingresses"]
   verbs: ["get", "watch", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
   name: pifrost-reader
   namespace: pifrost
 subjects:
 - kind: ServiceAccount
   name: pifrost
+  namespace: pifrost
 roleRef:
-  kind: Role
-  name: pifrost-reader
+  kind: ClusterRole
+  name: cluster-admin
   apiGroup: rbac.authorization.k8s.io

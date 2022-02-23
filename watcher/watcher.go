@@ -186,7 +186,6 @@ func pollIngress(ingress *v1Networking.Ingress, client *kubernetes.Clientset) (*
 		if err != nil {
 			return nil, fmt.Errorf("Failed to create ingress poll client: %s", err)
 		}
-		time.Sleep(500)
 		if len(ingress.Status.LoadBalancer.Ingress) != 0 {
 			return ingress, nil
 		} else {
@@ -262,7 +261,6 @@ func watcherService(dnsProvider *provider.PiHoleRequest, client *kubernetes.Clie
 		case watch.Deleted:
 			val, ok := hasAnnotation(svc.Annotations)
 			if ok {
-				svc, err = pollService(svc, client)
 				if err != nil {
 					logrus.WithFields(logrus.Fields{
 						"service": svc.ObjectMeta.Name,
@@ -317,11 +315,10 @@ func pollService(svc *v1.Service, client *kubernetes.Clientset) (*v1.Service, er
 		if err != nil {
 			return nil, fmt.Errorf("Failed to create service poll client: %s", err)
 		}
-		time.Sleep(500)
 		if len(svc.Status.LoadBalancer.Ingress) != 0 {
 			return svc, nil
 		} else {
-			time.Sleep(500)
+			time.Sleep(1 << count * time.Second)
 		}
 		count++
 		if count == tries {

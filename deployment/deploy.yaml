@@ -18,8 +18,9 @@ spec:
       labels:
         app: pifrost
     spec:
+      serviceAccount: pifrost
       containers:
-      - image: pifrost:latest
+      - image: ghcr.io/tolson-vkn/pifrost:latest
         args:
         - server
         - --insecure
