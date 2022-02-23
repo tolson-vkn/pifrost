@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    repo: https://github.com/tolson-vkn/pifrost
+  labels:
+    app: pifrost
+  name: pifrost
+  namespace: pifrost
+spec:
+  replicas: 1
+  strategy: {}
+  selector:
+    matchLabels:
+      app: pifrost
+  template:
+    metadata:
+      labels:
+        app: pifrost
+    spec:
+      containers:
+      - image: pifrost:latest
+        args:
+        - server
+        - --insecure
+        - --pihole-host=10.1.1.5
+        - --pihole-token=$(PIHOLE_TOKEN)
+        name: pifrost
+        env:
+        - name: PIHOLE_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: pifrost
+              key: pihole_token
+        resources:
+          limits:
+            cpu: "25m"
+            memory: "25Mi"
+          requests:
+            cpu: "25m"
+            memory: "25Mi"
+      restartPolicy: Always
+status: {}

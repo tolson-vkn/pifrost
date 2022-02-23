@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    repo: https://github.com/tolson-vkn/env-echgo
+  labels:
+    app: env-echgo
+  name: env-echgo
+  namespace: env-echgo
+spec:
+  replicas: 2
+  strategy: {}
+  selector:
+    matchLabels:
+      app: env-echgo
+  template:
+    metadata:
+      labels:
+        app: env-echgo
+    spec:
+      containers:
+      - image: ghcr.io/tolson-vkn/env-echgo:latest
+        name: env-echgo
+        ports:
+        - containerPort: 5000
+        env:
+        - name: ECHGO_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: ECHGO_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: ECHGO_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        resources:
+          limits:
+            cpu: "25m"
+            memory: "25Mi"
+          requests:
+            cpu: "25m"
+            memory: "25Mi"
+      restartPolicy: Always
+status: {}

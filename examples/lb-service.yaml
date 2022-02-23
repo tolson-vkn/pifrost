@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    repo: https://github.com/tolson-vkn/env-echgo
+    # In my homelab, use metallb
+    metallb.universe.tf/address-pool: default
+    # This is the domain I want
+    pifrost.tolson.io/domain: "env-echgo-lb.tolson.io"
+  labels:
+    app: env-echgo
+  name: env-echgo-lb
+  namespace: env-echgo
+spec:
+  type: LoadBalancer
+  ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app: env-echgo
