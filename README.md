@@ -89,7 +89,7 @@ As seen in the `deployment/` directory, but called out here. Pass the `--pihole-
 [... snip ...]
 containers:
 - args:
-  --configmap=$(PIHOLE_TOKEN)
+  --pihole-token=$(PIHOLE_TOKEN)
 [... snip ...]
 env:
 - name: PIHOLE_TOKEN
