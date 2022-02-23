@@ -4,7 +4,7 @@ An external DNS covering service and ingress objects for the upstream DNS; [pi-h
 
 ## Demo
 
-[![asciicast](https://asciinema.org/a/V356dreA2nh6j2UkvjG4r7oLt.svg)](https://asciinema.org/a/V356dreA2nh6j2UkvjG4r7oLt)
+[![asciicast](https://asciinema.org/a/471236.svg)](https://asciinema.org/a/471236)
 
 ## Usage
 
