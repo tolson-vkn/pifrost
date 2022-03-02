@@ -16,6 +16,11 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -tags netgo \
 # ---
 
 FROM alpine
+ARG BUILD_DATE
+ARG GITHUB_SHA
+
+ENV BUILD_DATE=$BUILD_DATE
+ENV GITHUB_SHA=$GITHUB_SHA
 
 COPY --from=builder /opt/build/pifrost /usr/local/bin/pifrost
 ENTRYPOINT ["pifrost"]
