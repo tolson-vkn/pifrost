@@ -8,12 +8,16 @@ ARG version=UnknownVER
 WORKDIR /opt/build
 ADD . ./
 
-# RUN go test
+RUN go test
 
+FROM builder as builder-amd64
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -tags netgo \
     -ldflags="-X github.com/tolson-vkn/pifrost/version.GitCommit=${gitcommit} -X github.com/tolson-vkn/pifrost/version.Version=${version}"
 
-# ---
+FROM builder as builder-arm64
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -a -tags netgo \
+    -ldflags="-X github.com/tolson-vkn/pifrost/version.GitCommit=${gitcommit} -X github.com/tolson-vkn/pifrost/version.Version=${version}"
+
 
 FROM alpine
 ARG BUILD_DATE
@@ -22,5 +26,5 @@ ARG GITHUB_SHA
 ENV BUILD_DATE=$BUILD_DATE
 ENV GITHUB_SHA=$GITHUB_SHA
 
-COPY --from=builder /opt/build/pifrost /usr/local/bin/pifrost
+COPY --from=builder-arm64 /opt/build/pifrost /usr/local/bin/pifrost
 ENTRYPOINT ["pifrost"]
