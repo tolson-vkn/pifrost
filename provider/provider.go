@@ -49,7 +49,7 @@ func CreateChangeSet(ip, d, action string) (*dnsChangeSet, error) {
 	}
 
 	// Is the domain valid?
-	re := regexp.MustCompile(`^(([a-zA-Z]{1})|([a-zA-Z]{1}[a-zA-Z]{1})|([a-zA-Z]{1}[0-9]{1})|([0-9]{1}[a-zA-Z]{1})|([a-zA-Z0-9][a-zA-Z0-9-_]{1,61}[a-zA-Z0-9]))\.([a-zA-Z]{2,6}|[a-zA-Z0-9-]{2,30}\.[a-zA-Z]{2,3})$`)
+	re := regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*)([^a-z0-9-]|$)$`)
 	if match := re.MatchString(d); match == false {
 		return nil, fmt.Errorf("Could not parse change set domain [%s]", d)
 	}
@@ -79,7 +79,7 @@ func CreateChangeSet(ip, d, action string) (*dnsChangeSet, error) {
 // Create a DNS provider request struct.
 func InitDNSProvider(insecure bool, host, token string) (*PiHoleRequest, error) {
 	// Check RFC1123 hostname
-	re := regexp.MustCompile(`^(([a-zA-Z]{1})|([a-zA-Z]{1}[a-zA-Z]{1})|([a-zA-Z]{1}[0-9]{1})|([0-9]{1}[a-zA-Z]{1})|([a-zA-Z0-9][a-zA-Z0-9-_]{1,61}[a-zA-Z0-9]))\.([a-zA-Z]{2,6}|[a-zA-Z0-9-]{2,30}\.[a-zA-Z]{2,3})$`)
+	re := regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*)([^a-z0-9-]|$)$`)
 	match := re.MatchString(host)
 
 	// Check if IP
