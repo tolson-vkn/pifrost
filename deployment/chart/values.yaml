@@ -47,6 +47,9 @@ affinity: {}
 restartPolicy: Always
 
 pifrost:
+  # Log level (debug, info, warn, error, fatal, panic)
+  logLevel: warning
+
   # Hostname or IP address of pi-hole instance.
   piholeHost:
 

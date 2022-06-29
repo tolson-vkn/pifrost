@@ -33,6 +33,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
           - server
+          - --log-level={{ .Values.pifrost.logLevel }}
           - --pihole-host={{ required "A valid .Values.pifrost.piholeHost is required." .Values.pifrost.piholeHost }}
           - --pihole-token=$(PIHOLE_TOKEN)
           {{ if .Values.pifrost.insecure }}
