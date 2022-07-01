@@ -62,7 +62,7 @@ func TestInvalidChangeSet(t *testing.T) {
 }
 
 func TestValidProvider(t *testing.T) {
-	expected := &piHoleRequest{
+	expected := &PiHoleRequest{
 		insecure:      true,
 		piholeAddress: "10.1.1.5",
 		token:         "foobar",
@@ -73,7 +73,7 @@ func TestValidProvider(t *testing.T) {
 		t.Error("Valid add changeset not parsed")
 	}
 
-	expected = &piHoleRequest{
+	expected = &PiHoleRequest{
 		insecure:      false,
 		piholeAddress: "pihole.tolson.io",
 		token:         "foobar",
