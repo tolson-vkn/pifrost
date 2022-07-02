@@ -49,7 +49,7 @@ func CreateChangeSet(ip, d, action string) (*dnsChangeSet, error) {
 	}
 
 	// Is the domain valid?
-	re := regexp.MustCompile(`^(([a-zA-Z]{1})|([a-zA-Z]{1}[a-zA-Z]{1})|([a-zA-Z]{1}[0-9]{1})|([0-9]{1}[a-zA-Z]{1})|([a-zA-Z0-9][a-zA-Z0-9-_]{1,61}[a-zA-Z0-9]))\.([a-zA-Z]{2,6}|[a-zA-Z0-9-]{2,30}\.[a-zA-Z]{2,3})$`)
+	re := regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*)([^a-z0-9-]|$)$`)
 	if match := re.MatchString(d); match == false {
 		return nil, fmt.Errorf("Could not parse change set domain [%s]", d)
 	}
@@ -79,25 +79,15 @@ func CreateChangeSet(ip, d, action string) (*dnsChangeSet, error) {
 // Create a DNS provider request struct.
 func InitDNSProvider(insecure bool, host, token string) (*PiHoleRequest, error) {
 	// Check RFC1123 hostname
-	re := regexp.MustCompile(`^(([a-zA-Z]{1})|([a-zA-Z]{1}[a-zA-Z]{1})|([a-zA-Z]{1}[0-9]{1})|([0-9]{1}[a-zA-Z]{1})|([a-zA-Z0-9][a-zA-Z0-9-_]{1,61}[a-zA-Z0-9]))\.([a-zA-Z]{2,6}|[a-zA-Z0-9-]{2,30}\.[a-zA-Z]{2,3})$`)
-	match := re.MatchString(host)
-
-	// Check if IP
-	var isIP bool = true
-	pIP := net.ParseIP(host)
-	if pIP != nil {
-		isIP = false
-	}
-
-	// Not a RFC1123 hostname or an IP, bad host. XOR
-	if match != isIP {
+	re := regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*)([^a-z0-9-]|$)$`)
+	if match := re.MatchString(host); match == false {
 		return nil, fmt.Errorf("Could not parse pi-hole host/domain [%s]", host)
-	} else {
-		logrus.WithFields(logrus.Fields{
-			"insecure": insecure,
-			"host":     host,
-		}).Info("Creating DNS Provider")
 	}
+
+	logrus.WithFields(logrus.Fields{
+		"insecure": insecure,
+		"host":     host,
+	}).Info("Creating DNS Provider")
 
 	piHoleRequest := &PiHoleRequest{
 		insecure,

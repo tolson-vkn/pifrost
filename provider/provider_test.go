@@ -50,28 +50,28 @@ func TestValidChangeSet(t *testing.T) {
 
 func TestInvalidChangeSet(t *testing.T) {
 	// Domain must be RFC1123
-	expected := "Could not parse change set domain [10.1.1.1]"
-	_, err := CreateChangeSet("8.8.8.8", "10.1.1.1", "add")
+	expected := "Could not parse change set domain [10.+1.1.1]"
+	_, err := CreateChangeSet("8.8.8.8", "10.+1.1.1", "add")
 	errMsg := err.Error()
 	if errMsg != expected {
 		t.Errorf("Error: %v, Expected: %v.", errMsg, expected)
 	}
 
-	//	// Change is actually an add
-	//	expected = "Change set action must be add or delete."
-	//	_, err = CreateChangeSet("8.8.8.8", "google.tolson.io", "change")
-	//	errMsg = err.Error()
-	//	if errMsg != expected {
-	//		t.Errorf("Error: %v, Expected: %v.", errMsg, expected)
-	//	}
-	//
-	//	// We don't support CNAME
-	//	expected = "Could not parse IP [google.com]"
-	//	_, err = CreateChangeSet("google.com", "google.tolson.io", "add")
-	//	errMsg = err.Error()
-	//	if errMsg != expected {
-	//		t.Errorf("Error: %v, Expected: %v.", errMsg, expected)
-	//	}
+	// Change is actually an add
+	expected = "Change set action must be add or delete."
+	_, err = CreateChangeSet("8.8.8.8", "google.tolson.io", "change")
+	errMsg = err.Error()
+	if errMsg != expected {
+		t.Errorf("Error: %v, Expected: %v.", errMsg, expected)
+	}
+
+	// We don't support CNAME
+	expected = "Could not parse IP [google.com]"
+	_, err = CreateChangeSet("google.com", "google.tolson.io", "add")
+	errMsg = err.Error()
+	if errMsg != expected {
+		t.Errorf("Error: %v, Expected: %v.", errMsg, expected)
+	}
 }
 
 func TestValidProvider(t *testing.T) {
@@ -83,7 +83,7 @@ func TestValidProvider(t *testing.T) {
 
 	provider, _ := InitDNSProvider(true, "10.1.1.5", "foobar")
 	if !reflect.DeepEqual(expected, provider) {
-		t.Error("Valid add changeset not parsed")
+		t.Error("Valid provider not returned")
 	}
 
 	expected = &PiHoleRequest{
@@ -94,21 +94,14 @@ func TestValidProvider(t *testing.T) {
 
 	provider, _ = InitDNSProvider(false, "pihole.tolson.io", "foobar")
 	if !reflect.DeepEqual(expected, provider) {
-		t.Error("Valid add changeset not parsed")
+		t.Error("Valid provider not returned")
 	}
 }
 
 func TestInvalidProvider(t *testing.T) {
-	expected := "Could not parse pi-hole host/domain [10.1.1.5.1]"
-	_, err := InitDNSProvider(false, "10.1.1.5.1", "foobar")
+	expected := "Could not parse pi-hole host/domain [not^domain.com]"
+	_, err := InitDNSProvider(false, "not^domain.com", "foobar")
 	errMsg := err.Error()
-	if errMsg != expected {
-		t.Errorf("Error: %v, Expected: %v.", errMsg, expected)
-	}
-
-	expected = "Could not parse pi-hole host/domain [not^domain.com]"
-	_, err = InitDNSProvider(false, "not^domain.com", "foobar")
-	errMsg = err.Error()
 	if errMsg != expected {
 		t.Errorf("Error: %v, Expected: %v.", errMsg, expected)
 	}
