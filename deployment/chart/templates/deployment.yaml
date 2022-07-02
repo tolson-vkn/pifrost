@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pifrost.fullname" . }}
+  labels:
+    {{- include "pifrost.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "pifrost.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "pifrost.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "pifrost.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+          - server
+          - --log-level={{ .Values.pifrost.logLevel }}
+          - --pihole-host={{ required "A valid .Values.pifrost.piholeHost is required." .Values.pifrost.piholeHost }}
+          - --pihole-token=$(PIHOLE_TOKEN)
+          {{ if .Values.pifrost.insecure }}
+          - --insecure
+          {{ end }}
+          {{ if .Values.pifrost.ingressAuto }}
+          - --ingress-auto
+          {{ end }}
+          {{ if .Values.pifrost.ingressExternalIp }}
+          - --ingress-externalip {{ .Values.pifrost.ingressExternalIp }}
+          {{ end }}
+          env:
+          - name: PIHOLE_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "pifrost.fullname" . }}
+                key: pihole_token
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,71 @@
+replicaCount: 1
+image:
+  repository: ghcr.io/tolson-vkn/pifrost
+  pullPolicy: IfNotPresent
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 25m
+  #   memory: 25Mi
+  # requests:
+  #   cpu: 25m
+  #   memory: 25Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+restartPolicy: Always
+
+pifrost:
+  # Log level (debug, info, warn, error, fatal, panic)
+  logLevel: warning
+
+  # Hostname or IP address of pi-hole instance.
+  piholeHost:
+
+  # pi-hole api token, can be found at: <pi-hole address>/admin/settings.php?tab=api
+  piholeToken:
+
+  # For users not using HTTPS on pi-hole, this flag must be supplied.
+  insecure: true
+
+  # Auto discover the ingress objects in the cluster and create DNS records in pi-hole.
+  # This is the default behavior of externaldns. All host records regardless of the domain
+  # will be sent to pi-hole. If you do not use this flag you then must put the annotation
+  # pifrost.tolson.io/ingress: "true" if you want it picked up.
+  ingressAuto: true
+
+  # Some installs, partuclarly homelab-ed kubernetes, may display the ingress controller
+  # load balancer as having the node IP as the loadbalancer IP. This can be fixed, but if
+  # you prefer to specify the load balancer IP use this flag.
+  ingressExternalIp:

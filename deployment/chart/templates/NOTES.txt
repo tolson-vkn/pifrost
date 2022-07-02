@@ -1,0 +1,17 @@
+pifrost
+An external DNS covering service and ingress objects for the upstream DNS; pi-hole.
+https://github.com/tolson-vkn/pifrost
+
+Annotations
+
+Service Object
+
+pifrost.tolson.io/domain: foo.tolson.io
+
+The annotation applied to a service object. The loadbalancer IP and annotation domain are sent to pi-hole.
+
+Ingress Object
+
+pifrost.tolson.io/ingress: "true"
+
+Only required if --ingress-auto is not supplied. For an ingress object to be added to pi-hole it must have this annotation.
