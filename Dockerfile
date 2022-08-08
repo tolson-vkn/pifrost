@@ -4,18 +4,14 @@ FROM golang:1.17 AS builder
 #   docker build -t pifrost --build-arg version=$(git describe --abbrev=0) --build-arg gitcommit=$(git rev-parse HEAD) .
 ARG gitcommit=UnknownSHA
 ARG version=UnknownVER
+ARG TARGETARCH=amd64
 
 WORKDIR /opt/build
 ADD . ./
 
-RUN go test
+RUN go test -v ./provider
 
-FROM builder as builder-amd64
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -tags netgo \
-    -ldflags="-X github.com/tolson-vkn/pifrost/version.GitCommit=${gitcommit} -X github.com/tolson-vkn/pifrost/version.Version=${version}"
-
-FROM builder as builder-arm64
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -a -tags netgo \
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -a -tags netgo \
     -ldflags="-X github.com/tolson-vkn/pifrost/version.GitCommit=${gitcommit} -X github.com/tolson-vkn/pifrost/version.Version=${version}"
 
 
@@ -26,5 +22,5 @@ ARG GITHUB_SHA
 ENV BUILD_DATE=$BUILD_DATE
 ENV GITHUB_SHA=$GITHUB_SHA
 
-COPY --from=builder-arm64 /opt/build/pifrost /usr/local/bin/pifrost
+COPY --from=builder /opt/build/pifrost /usr/local/bin/pifrost
 ENTRYPOINT ["pifrost"]
