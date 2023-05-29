@@ -43,7 +43,7 @@ spec:
           - --ingress-auto
           {{ end }}
           {{ if .Values.pifrost.ingressExternalIp }}
-          - --ingress-externalip {{ .Values.pifrost.ingressExternalIp }}
+          - --ingress-externalip={{ .Values.pifrost.ingressExternalIp }}
           {{ end }}
           env:
           - name: PIHOLE_TOKEN

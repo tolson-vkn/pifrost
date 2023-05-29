@@ -28,8 +28,9 @@ publish: ## Publish to GHCR
 	@echo "Build and Publish"
 
 	make version
-	make build
-	echo docker tag $(IMAGE) $(IMAGE):$(TAG)
-	echo docker tag $(IMAGE) $(IMAGE):latest
-	echo docker push $(IMAGE):$(TAG)
-	echo docker push $(IMAGE):latest
+	docker buildx build --push \
+		--tag $(IMAGE):$(TAG) \
+		--tag $(IMAGE):latest \
+		--build-arg version=$(shell git describe --abbrev=0) \
+		--build-arg gitcommit=$(shell git rev-parse HEAD) \
+		--platform linux/amd64,linux/arm/v7,linux/arm64 .
