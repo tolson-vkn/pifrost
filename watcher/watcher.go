@@ -72,9 +72,7 @@ func watcherIngress(dnsProvider *provider.PiHoleRequest, client *kubernetes.Clie
 			if len(ingressEIP) == 0 {
 				ingress, err = pollIngress(ingress, client)
 				if err != nil {
-					logrus.WithFields(logrus.Fields{
-						"ingress": ingress.ObjectMeta.Name,
-					}).Warnf("Watch error: %s", err)
+					logrus.Warnf("Watch error: %s", err)
 					continue
 				}
 
@@ -130,9 +128,7 @@ func watcherIngress(dnsProvider *provider.PiHoleRequest, client *kubernetes.Clie
 			if len(ingressEIP) == 0 {
 				ingress, err = pollIngress(ingress, client)
 				if err != nil {
-					logrus.WithFields(logrus.Fields{
-						"ingress": ingress.ObjectMeta.Name,
-					}).Warnf("Watch error: %s", err)
+					logrus.Warnf("Watch error: %s", err)
 					continue
 				}
 
@@ -217,9 +213,7 @@ func watcherService(dnsProvider *provider.PiHoleRequest, client *kubernetes.Clie
 			if ok {
 				svc, err = pollService(svc, client)
 				if err != nil {
-					logrus.WithFields(logrus.Fields{
-						"service": svc.ObjectMeta.Name,
-					}).Warnf("Watch error: %s", err)
+					logrus.Warnf("Watch error: %s", err)
 					continue
 				}
 				if svc.Spec.Type == "LoadBalancer" {
