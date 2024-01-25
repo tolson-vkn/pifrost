@@ -39,12 +39,12 @@ var serverCmd = &cobra.Command{
 		if len(kubeconfig) == 0 {
 			kconfig, err = rest.InClusterConfig()
 			if err != nil {
-				logrus.Fatal("Could not get in cluster config: %s", err)
+				logrus.Fatalf("Could not get in cluster config: %s", err)
 			}
 		} else {
 			kconfig, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 			if err != nil {
-				logrus.Fatal("Could not get out of cluster config: %s", err)
+				logrus.Fatalf("Could not get out of cluster config: %s", err)
 			}
 		}
 

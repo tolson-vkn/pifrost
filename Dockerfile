@@ -1,4 +1,4 @@
-FROM golang:1.17 AS builder
+FROM golang:1.21 AS builder
 
 # For local dev with version working:
 #   docker build -t pifrost --build-arg version=$(git describe --abbrev=0) --build-arg gitcommit=$(git rev-parse HEAD) .
