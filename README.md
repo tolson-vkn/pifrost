@@ -106,8 +106,32 @@ See `examples/` for a test deployment
 
 See `api-responses.md` for pihole dns API.
 
+## Testing
+
+This is not exhaustive but things that should be tested in addition to go tests.
+
+``` bash
+# docker run pihole or point  at one...
+# ---
+kubectl apply -f examples/
+# delete annotation from lb-service.yaml
+kubectl apply -f examples/lb-service.yaml
+# put it back to normal it should pick it back up.
+git checkout -- examples/lb-service
+kubectl apply -f examples/lb-service.yaml
+# add a new random annotation back to the lb-service.yaml did it change the record?
+sed -i 's#pifrost.tolson.io/domain: "env-echgo-lb.tolson.io"#pifrost.tolson.io/domain: "env-echgo-lb-two.tolson.io"#' examples/lb-service.yaml
+kubectl apply -f examples/lb-service.yaml
+# ---
+# rename the ingress
+sed -i 's#env-echgo.example.com#env-echgo-two.example.com#' examples/ingress.yaml
+kubectl apply -f examples/ingress.yaml
+# remove it
+git checkout -- examples/lb-service
+kubectl delete -f examples/ingress.yaml
+```
+
 ## TODO
 
 * Better testing client-go bits.
 * Does not support `.Status.Loadbalancer[*].hostname` - It assumes infra like metalLB
-* Maybe this is worth refactoring and upstreaming into externalDNS proper? Dunno.

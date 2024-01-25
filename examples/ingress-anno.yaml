@@ -8,7 +8,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: env-echgo-noanno.example.com
+    - host: env-echgo-anno.example.com
       http:
         paths:
           - path: /

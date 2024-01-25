@@ -8,6 +8,7 @@ import (
 // TODO mock the API calls...
 
 func TestValidChangeSet(t *testing.T) {
+	// Test case 1: Valid changeset
 	expected := &dnsChangeSet{
 		domain: domain{
 			"1.2.3.4",
@@ -49,7 +50,7 @@ func TestValidChangeSet(t *testing.T) {
 }
 
 func TestInvalidChangeSet(t *testing.T) {
-	// Domain must be RFC1123
+	// Test case 1: Domain must be RFC1123
 	expected := "Could not parse change set domain [10.+1.1.1]"
 	_, err := CreateChangeSet("8.8.8.8", "10.+1.1.1", "add")
 	errMsg := err.Error()
@@ -57,7 +58,7 @@ func TestInvalidChangeSet(t *testing.T) {
 		t.Errorf("Error: %v, Expected: %v.", errMsg, expected)
 	}
 
-	// Change is actually an add
+	// Test case 2: Change is actually an add
 	expected = "Change set action must be add or delete."
 	_, err = CreateChangeSet("8.8.8.8", "google.tolson.io", "change")
 	errMsg = err.Error()
@@ -65,7 +66,7 @@ func TestInvalidChangeSet(t *testing.T) {
 		t.Errorf("Error: %v, Expected: %v.", errMsg, expected)
 	}
 
-	// We don't support CNAME
+	// Test case 3: We don't support CNAME
 	expected = "Could not parse IP [google.com]"
 	_, err = CreateChangeSet("google.com", "google.tolson.io", "add")
 	errMsg = err.Error()
@@ -75,6 +76,7 @@ func TestInvalidChangeSet(t *testing.T) {
 }
 
 func TestValidProvider(t *testing.T) {
+	// Test case 1: Valid provider
 	expected := &PiHoleRequest{
 		insecure:      true,
 		piholeAddress: "10.1.1.5",
@@ -99,6 +101,7 @@ func TestValidProvider(t *testing.T) {
 }
 
 func TestInvalidProvider(t *testing.T) {
+	// Test case 1: Domain parse failure
 	expected := "Could not parse pi-hole host/domain [not^domain.com]"
 	_, err := InitDNSProvider(false, "not^domain.com", "foobar")
 	errMsg := err.Error()
@@ -108,6 +111,7 @@ func TestInvalidProvider(t *testing.T) {
 }
 
 func TestDomainExists(t *testing.T) {
+	// Test case 1: Domain exists in list of domains
 	var expected bool = true
 	d := domain{
 		"8.8.8.8",
@@ -134,6 +138,7 @@ func TestDomainExists(t *testing.T) {
 		t.Error("Domain not found in list of domains")
 	}
 
+	// Test case 2: Domain does not exist in list of domains
 	expected = false
 	d = domain{
 		"8.8.8.8",
@@ -160,7 +165,7 @@ func TestDecodeDomains(t *testing.T) {
 }
 
 func TestDecodeSuccess(t *testing.T) {
-	// Normal case
+	// Test case 1: Normal case
 	successBytes := []byte("{\"success\":true,\"message\":\"\"}{\"FTLnotrunning\":true}")
 	expected := &successResponse{
 		Success: true,
@@ -171,7 +176,7 @@ func TestDecodeSuccess(t *testing.T) {
 		t.Error("Expected response was success, decoded was not")
 	}
 
-	// Duplicate
+	// Test case 2: Duplicate
 	successBytes = []byte("{\"success\":false,\"message\":\"This domain\\\\/ip association does not exist\"}[]")
 	expected = &successResponse{
 		Success: false,
@@ -182,7 +187,7 @@ func TestDecodeSuccess(t *testing.T) {
 		t.Error("Expected response reflection error")
 	}
 
-	// Already exists
+	// Test case 3: Already exists
 	successBytes = []byte("{\"success\":false,\"message\":\"This domain already has a custom DNS entry for an IPv4\"}[]")
 	expected = &successResponse{
 		Success: false,

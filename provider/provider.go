@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"reflect"
@@ -235,9 +234,9 @@ func (phr *PiHoleRequest) add(dcs *dnsChangeSet) error {
 		"ip":     dcs.domain.ip,
 	}).Info("Created record.")
 
-	sR, err := decodeSuccess(response)
-	if !sR.Success {
-		return fmt.Errorf("Could not add record: %s", sR.Message)
+	_, err = decodeSuccess(response)
+	if err != nil {
+		return fmt.Errorf("Could not add record: %s", err)
 	} else {
 		return nil
 	}
@@ -261,9 +260,9 @@ func (phr *PiHoleRequest) delete(dcs *dnsChangeSet) error {
 		if err != nil {
 			fmt.Errorf("Could not delete record: %s", err)
 		}
-		sR, err := decodeSuccess(response)
-		if !sR.Success {
-			return fmt.Errorf("Could not delete record: %s", sR.Message)
+		_, err = decodeSuccess(response)
+		if err != nil {
+			return fmt.Errorf("Could not delete record: %s", err)
 		} else {
 			logrus.WithFields(logrus.Fields{
 				"domain": dcs.domain.domain,
@@ -314,12 +313,12 @@ func (phr *PiHoleRequest) doRequest(method string, dcs *dnsChangeSet) ([]byte, e
 	client := &http.Client{}
 	// This API returns 200 on failure...
 	resp, err := client.Do(req)
-	if err != nil {
+	if err != nil || resp == nil {
 		return nil, errors.New("Error sending request to the server.")
 	}
 
 	defer resp.Body.Close()
-	responseBody, err := ioutil.ReadAll(resp.Body)
+	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.New("Failed to read response body.")
 	}

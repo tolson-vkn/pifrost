@@ -30,7 +30,14 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", logrus.WarnLevel.String(), "log level (debug, info, warn, error, fatal, panic")
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		if err := setUpLogs(os.Stdout, logLevel); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", logrus.InfoLevel.String(), "log level (debug, info, warn, error, fatal, panic")
 
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(serverCmd)
