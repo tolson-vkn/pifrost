@@ -17,6 +17,13 @@ build: ## Build Web.
 	@echo "+--------------------+"
 	docker build -t $(IMAGE) --build-arg version=$(shell git describe --abbrev=0) --build-arg gitcommit=$(shell git rev-parse HEAD) .
 
+.PHONY: build-bin
+build-bin: ## Build go binary.
+	@echo "+------------------+"
+	@echo "| Building pifrost |"
+	@echo "+------------------+"
+	CGO_ENABLED=0 GOOS=linux go build -a -tags netgo
+
 .PHONY: version
 version: ## Make a release tag
 	@echo "Tagging version."

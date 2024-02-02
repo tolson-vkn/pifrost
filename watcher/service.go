@@ -103,8 +103,6 @@ func addServiceHandler(client kubernetes.Interface, dnsProvider *provider.PiHole
 				"service": service.ObjectMeta.Name,
 			}).Warn("Service is not of type LoadBalancer. Ignored")
 		}
-	} else {
-		return ErrSvcMissingAnnotation
 	}
 
 	return nil

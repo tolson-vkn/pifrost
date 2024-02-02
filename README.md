@@ -116,20 +116,23 @@ This is not exhaustive but things that should be tested in addition to go tests.
 ``` bash
 # docker run pihole or point  at one...
 # ---
-kubectl apply -f examples/
+cd examples/
+kubectl apply -f lb-service.yaml
 # delete annotation from lb-service.yaml
-kubectl apply -f examples/lb-service.yaml
+sed -i '/pifrost.tolson.io\/domain: "env-echgo-lb.tolson.io"/d' lb-service.yaml
+kubectl apply -f lb-service.yaml
 # put it back to normal it should pick it back up.
-git checkout -- examples/lb-service
-kubectl apply -f examples/lb-service.yaml
+git checkout -- lb-service
+kubectl apply -f lb-service.yaml
 # add a new random annotation back to the lb-service.yaml did it change the record?
-sed -i 's#pifrost.tolson.io/domain: "env-echgo-lb.tolson.io"#pifrost.tolson.io/domain: "env-echgo-lb-two.tolson.io"#' examples/lb-service.yaml
-kubectl apply -f examples/lb-service.yaml
+sed -i 's#pifrost.tolson.io/domain: "env-echgo-lb.tolson.io"#pifrost.tolson.io/domain: "env-echgo-lb-two.tolson.io"#' lb-service.yaml
+kubectl apply -f lb-service.yaml
 # ---
 # rename the ingress
-sed -i 's#env-echgo.example.com#env-echgo-two.example.com#' examples/ingress.yaml
-kubectl apply -f examples/ingress.yaml
+kubectl apply -f ingress.yaml
+sed -i 's#env-echgo.example.com#env-echgo-two.example.com#' ingress.yaml
+kubectl apply -f ingress.yaml
 # remove it
-git checkout -- examples/lb-service
-kubectl delete -f examples/ingress.yaml
+git checkout -- ingress.yaml
+kubectl delete -f ingress.yaml
 ```
