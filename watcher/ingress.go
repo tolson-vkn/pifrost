@@ -2,6 +2,7 @@ package watcher
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,13 +11,18 @@ import (
 	v1Networking "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/tolson-vkn/pifrost/provider"
 )
 
-func pollIngress(ingress *v1Networking.Ingress, client *kubernetes.Clientset) (*v1Networking.Ingress, error) {
+var (
+	ErrIngNotTypeLoadBalancer   = errors.New("Ingress does not have a LoadBalancerIP")
+	ErrIngMissingLoadBalancerIP = errors.New("Ingress is a LoadBalancer but was not assigned an IP")
+	ErrIngMissingAnnotation     = errors.New("Missing pifrost Ingress annotation")
+)
+
+func pollIngress(client kubernetes.Interface, ingress *v1Networking.Ingress) (*v1Networking.Ingress, error) {
 	var count int = 1
 	const tries int = 8
 	for {
@@ -31,14 +37,14 @@ func pollIngress(ingress *v1Networking.Ingress, client *kubernetes.Clientset) (*
 		}
 		count++
 		if count == tries {
-			return nil, fmt.Errorf("Service did not get ingress IP in time")
+			return nil, ErrIngNotTypeLoadBalancer
 		}
 	}
 }
 
-func fetchIngressLB(client *kubernetes.Clientset, ingress *v1Networking.Ingress) (string, error) {
+func fetchIngressLB(client kubernetes.Interface, ingress *v1Networking.Ingress) (string, error) {
 	// Ingress ExternalIP is not set... look it up.
-	ingress, err := pollIngress(ingress, client)
+	ingress, err := pollIngress(client, ingress)
 	if err != nil {
 		return "", fmt.Errorf("Watch error: %s", err)
 	}
@@ -49,7 +55,7 @@ func fetchIngressLB(client *kubernetes.Clientset, ingress *v1Networking.Ingress)
 
 	ip := ingress.Status.LoadBalancer.Ingress[0].IP
 	if len(ip) == 0 {
-		return "", fmt.Errorf("Ingress does not have LoadBalancerIP")
+		return "", ErrIngNotTypeLoadBalancer
 	}
 
 	return ip, nil
@@ -83,11 +89,11 @@ func delIngressRecord(dnsProvider *provider.PiHoleRequest, host string, ip strin
 	return nil
 }
 
-func addIngressHandler(ingressAnnotation bool, ingressIP string, client *kubernetes.Clientset, dnsProvider *provider.PiHoleRequest, ingress *v1Networking.Ingress) {
+func addIngressHandler(client kubernetes.Interface, dnsProvider *provider.PiHoleRequest, ingressAnnotation bool, ingressIP string, ingress *v1Networking.Ingress) error {
 	if !ingressAnnotation {
 		ok := hasIngressAnnotation(ingress.Annotations)
 		if !ok {
-			return
+			return ErrIngMissingAnnotation
 		}
 	}
 
@@ -95,9 +101,7 @@ func addIngressHandler(ingressAnnotation bool, ingressIP string, client *kuberne
 	if len(ingressIP) == 0 {
 		ingressIP, err = fetchIngressLB(client, ingress)
 		if err != nil {
-			logrus.WithFields(logrus.Fields{
-				"ingress": ingress.ObjectMeta.Name,
-			}).Fatalf("Ingress LB error: %s", err)
+			return ErrIngNotTypeLoadBalancer
 		}
 	}
 
@@ -106,10 +110,7 @@ func addIngressHandler(ingressAnnotation bool, ingressIP string, client *kuberne
 
 		err = addIngressRecord(dnsProvider, host, ingressIP)
 		if err != nil {
-			logrus.WithFields(logrus.Fields{
-				"ingress": ingress.ObjectMeta.Name,
-				"domain":  host,
-			}).Fatalf("Record creation error: %s", err)
+			return err
 		}
 
 		logrus.WithFields(logrus.Fields{
@@ -117,13 +118,15 @@ func addIngressHandler(ingressAnnotation bool, ingressIP string, client *kuberne
 			"domain":  host,
 		}).Info("Completed ingress creation for domain")
 	}
+
+	return nil
 }
 
-func delIngressHandler(ingressAnnotation bool, ingressIP string, client *kubernetes.Clientset, dnsProvider *provider.PiHoleRequest, ingress *v1Networking.Ingress) {
+func delIngressHandler(client kubernetes.Interface, dnsProvider *provider.PiHoleRequest, ingressAnnotation bool, ingressIP string, ingress *v1Networking.Ingress) error {
 	if !ingressAnnotation {
 		ok := hasIngressAnnotation(ingress.Annotations)
 		if !ok {
-			return
+			return ErrIngMissingAnnotation
 		}
 	}
 
@@ -131,9 +134,7 @@ func delIngressHandler(ingressAnnotation bool, ingressIP string, client *kuberne
 	if len(ingressIP) == 0 {
 		ingressIP, err = fetchIngressLB(client, ingress)
 		if err != nil {
-			logrus.WithFields(logrus.Fields{
-				"ingress": ingress.ObjectMeta.Name,
-			}).Fatalf("Ingress LB error: %s", err)
+			return err
 		}
 	}
 
@@ -142,10 +143,7 @@ func delIngressHandler(ingressAnnotation bool, ingressIP string, client *kuberne
 
 		err = delIngressRecord(dnsProvider, host, ingressIP)
 		if err != nil {
-			logrus.WithFields(logrus.Fields{
-				"ingress": ingress.ObjectMeta.Name,
-				"domain":  host,
-			}).Fatalf("Record deletion error: %s", err)
+			return err
 		}
 
 		logrus.WithFields(logrus.Fields{
@@ -153,9 +151,14 @@ func delIngressHandler(ingressAnnotation bool, ingressIP string, client *kuberne
 			"domain":  host,
 		}).Info("Completed ingress deletion for domain")
 	}
+
+	return nil
 }
 
-func updateIngressHandler(ingressAnnotation bool, ingressIP string, client *kubernetes.Clientset, dnsProvider *provider.PiHoleRequest, oldIngress *v1Networking.Ingress, newIngress *v1Networking.Ingress) {
+func updateIngressHandler(client kubernetes.Interface, dnsProvider *provider.PiHoleRequest, ingressAnnotation bool, ingressIP string, oldIngress *v1Networking.Ingress, newIngress *v1Networking.Ingress) error {
+	var err error
+	var sameIP bool = false
+
 	if !ingressAnnotation {
 		newHasAnnotation := hasIngressAnnotation(newIngress.Annotations)
 		oldHasAnnotation := hasIngressAnnotation(oldIngress.Annotations)
@@ -163,7 +166,10 @@ func updateIngressHandler(ingressAnnotation bool, ingressIP string, client *kube
 		// We no longer wish to manage this record. Remove it from pihole.
 		if oldHasAnnotation && !newHasAnnotation {
 			for _, host := range oldIngress.Spec.Rules {
-				delIngressRecord(dnsProvider, host.Host, ingressIP)
+				err = delIngressRecord(dnsProvider, host.Host, ingressIP)
+				if err != nil {
+					return err
+				}
 			}
 
 			logrus.WithFields(logrus.Fields{
@@ -172,15 +178,10 @@ func updateIngressHandler(ingressAnnotation bool, ingressIP string, client *kube
 		}
 	}
 
-	var err error
-	var sameIP bool = false
-
 	if len(ingressIP) == 0 {
 		ingressIP, err = fetchIngressLB(client, newIngress)
 		if err != nil {
-			logrus.WithFields(logrus.Fields{
-				"ingress": oldIngress.ObjectMeta.Name,
-			}).Fatalf("Ingress LB error: %s", err)
+			return err
 		}
 	}
 
@@ -203,9 +204,7 @@ func updateIngressHandler(ingressAnnotation bool, ingressIP string, client *kube
 
 	if len(ingressIP) == 0 {
 		if len(oldIngress.Status.LoadBalancer.Ingress) != 1 || len(newIngress.Status.LoadBalancer.Ingress) != 1 {
-			logrus.WithFields(logrus.Fields{
-				"ingress": oldIngress.ObjectMeta.Name,
-			}).Fatal("pifrost only supports single LB IP ingress objects")
+			return ErrPifrostSingleLB
 		}
 
 		if oldIngress.Status.LoadBalancer.Ingress[0].IP != newIngress.Status.LoadBalancer.Ingress[0].IP {
@@ -220,8 +219,6 @@ func updateIngressHandler(ingressAnnotation bool, ingressIP string, client *kube
 		logrus.WithFields(logrus.Fields{
 			"ingress": oldIngress.ObjectMeta.Name,
 		}).Debug("There was a object update but nothing to do")
-
-		return
 	}
 
 	// Get new old and instances in both...
@@ -231,9 +228,7 @@ func updateIngressHandler(ingressAnnotation bool, ingressIP string, client *kube
 	for _, host := range added {
 		err := addIngressRecord(dnsProvider, host, ingressIP)
 		if err != nil {
-			logrus.WithFields(logrus.Fields{
-				"ingress": oldIngress.ObjectMeta.Name,
-			}).Fatalf("Could not update ingress: %s", err)
+			return err
 		}
 
 		logrus.WithFields(logrus.Fields{
@@ -246,9 +241,7 @@ func updateIngressHandler(ingressAnnotation bool, ingressIP string, client *kube
 	for _, host := range removed {
 		err := delIngressRecord(dnsProvider, host, ingressIP)
 		if err != nil {
-			logrus.WithFields(logrus.Fields{
-				"ingress": oldIngress.ObjectMeta.Name,
-			}).Fatalf("Could not update ingress: %s", err)
+			return err
 		}
 
 		logrus.WithFields(logrus.Fields{
@@ -263,16 +256,12 @@ func updateIngressHandler(ingressAnnotation bool, ingressIP string, client *kube
 		for _, host := range both {
 			err := delIngressRecord(dnsProvider, host, ingressIP)
 			if err != nil {
-				logrus.WithFields(logrus.Fields{
-					"ingress": oldIngress.ObjectMeta.Name,
-				}).Fatalf("Could not update ingress: %s", err)
+				return err
 			}
 
 			err = addIngressRecord(dnsProvider, host, ingressIP)
 			if err != nil {
-				logrus.WithFields(logrus.Fields{
-					"ingress": oldIngress.ObjectMeta.Name,
-				}).Fatalf("Could not update ingress: %s", err)
+				return err
 			}
 
 			logrus.WithFields(logrus.Fields{
@@ -282,5 +271,5 @@ func updateIngressHandler(ingressAnnotation bool, ingressIP string, client *kube
 		}
 	}
 
-	return
+	return nil
 }

@@ -1,15 +1,17 @@
 package watcher
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
 
 	v1 "k8s.io/api/core/v1"
 	v1Networking "k8s.io/api/networking/v1"
-
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
+
+var ErrPifrostSingleLB = errors.New("pifrost only supports single LB IP ingress objects")
 
 func getSvcAnnotation(annotations map[string]string) (string, bool) {
 	if val, ok := annotations["pifrost.tolson.io/domain"]; ok {

@@ -2,6 +2,7 @@ package watcher
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,13 +11,18 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/tolson-vkn/pifrost/provider"
 )
 
-func pollService(svc *v1.Service, client *kubernetes.Clientset) (*v1.Service, error) {
+var (
+	ErrSvcNotTypeLoadBalancer   = errors.New("Service does not have a LoadBalancerIP")
+	ErrSvcMissingLoadBalancerIP = errors.New("Service is a LoadBalancer but was not assigned an IP")
+	ErrSvcMissingAnnotation     = errors.New("Missing pifrost Service annotation")
+)
+
+func pollService(client kubernetes.Interface, svc *v1.Service) (*v1.Service, error) {
 	var count int = 1
 	const tries int = 10
 	for {
@@ -31,7 +37,7 @@ func pollService(svc *v1.Service, client *kubernetes.Clientset) (*v1.Service, er
 		}
 		count++
 		if count == tries {
-			return nil, fmt.Errorf("Service did not get external IP in time")
+			return nil, ErrSvcNotTypeLoadBalancer
 		}
 	}
 }
@@ -64,20 +70,18 @@ func delServiceRecord(dnsProvider *provider.PiHoleRequest, host string, ip strin
 	return nil
 }
 
-func addServiceHandler(dnsProvider *provider.PiHoleRequest, client *kubernetes.Clientset, service *v1.Service) {
+func addServiceHandler(client kubernetes.Interface, dnsProvider *provider.PiHoleRequest, service *v1.Service) error {
 	host, hasIt := getSvcAnnotation(service.Annotations)
 	if hasIt {
-		service, err := pollService(service, client)
+		service, err := pollService(client, service)
 		if err != nil {
-			logrus.Fatalf("Watch error: %s", err)
+			return err
 		}
 
 		if service.Spec.Type == "LoadBalancer" {
 			ip := service.Status.LoadBalancer.Ingress[0].IP
 			if len(ip) == 0 {
-				logrus.WithFields(logrus.Fields{
-					"service": service.ObjectMeta.Name,
-				}).Warn("Has annotation but does not have LoadBalancerIP")
+				return ErrSvcNotTypeLoadBalancer
 			}
 
 			logrus.WithFields(logrus.Fields{
@@ -87,10 +91,7 @@ func addServiceHandler(dnsProvider *provider.PiHoleRequest, client *kubernetes.C
 
 			err = addServiceRecord(dnsProvider, host, ip)
 			if err != nil {
-				logrus.WithFields(logrus.Fields{
-					"service": service.ObjectMeta.Name,
-					"domain":  host,
-				}).Fatalf("Record creation error: %s", err)
+				return err
 			}
 
 			logrus.WithFields(logrus.Fields{
@@ -102,18 +103,20 @@ func addServiceHandler(dnsProvider *provider.PiHoleRequest, client *kubernetes.C
 				"service": service.ObjectMeta.Name,
 			}).Warn("Service is not of type LoadBalancer. Ignored")
 		}
+	} else {
+		return ErrSvcMissingAnnotation
 	}
+
+	return nil
 }
 
-func delServiceHandler(dnsProvider *provider.PiHoleRequest, client *kubernetes.Clientset, service *v1.Service) {
+func delServiceHandler(client kubernetes.Interface, dnsProvider *provider.PiHoleRequest, service *v1.Service) error {
 	host, hasIt := getSvcAnnotation(service.Annotations)
 	if hasIt {
 		if service.Spec.Type == "LoadBalancer" {
 			ip := service.Status.LoadBalancer.Ingress[0].IP
 			if len(ip) == 0 {
-				logrus.WithFields(logrus.Fields{
-					"service": service.ObjectMeta.Name,
-				}).Fatalf("Has annotation but does not have LoadBalancerIP")
+				return ErrSvcNotTypeLoadBalancer
 			}
 
 			logrus.WithFields(logrus.Fields{
@@ -123,10 +126,7 @@ func delServiceHandler(dnsProvider *provider.PiHoleRequest, client *kubernetes.C
 
 			err := delServiceRecord(dnsProvider, host, ip)
 			if err != nil {
-				logrus.WithFields(logrus.Fields{
-					"service": service.ObjectMeta.Name,
-					"domain":  host,
-				}).Fatalf("Record deletion error: %s", err)
+				return err
 			}
 
 			logrus.WithFields(logrus.Fields{
@@ -134,10 +134,14 @@ func delServiceHandler(dnsProvider *provider.PiHoleRequest, client *kubernetes.C
 				"domain":  host,
 			}).Info("Completed service deletion for domain")
 		}
+	} else {
+		return ErrSvcMissingAnnotation
 	}
+
+	return nil
 }
 
-func updateServiceHandler(dnsProvider *provider.PiHoleRequest, client *kubernetes.Clientset, oldService *v1.Service, newService *v1.Service) {
+func updateServiceHandler(client kubernetes.Interface, dnsProvider *provider.PiHoleRequest, oldService *v1.Service, newService *v1.Service) error {
 	oldHost, oldHasIt := getSvcAnnotation(oldService.Annotations)
 	newHost, newHasIt := getSvcAnnotation(newService.Annotations)
 
@@ -146,7 +150,7 @@ func updateServiceHandler(dnsProvider *provider.PiHoleRequest, client *kubernete
 		logrus.WithFields(logrus.Fields{
 			"service": newService.ObjectMeta.Name,
 		}).Warn("Service is not of type LoadBalancer. Ignored")
-		return
+		return nil
 	}
 
 	// Condition where pending IP is now assigned is captured by add event...
@@ -155,38 +159,29 @@ func updateServiceHandler(dnsProvider *provider.PiHoleRequest, client *kubernete
 
 		logrus.WithFields(logrus.Fields{
 			"service": newService.ObjectMeta.Name,
-		}).Debug("LB IP skip condition")
+		}).Debug("LoadBalancer IP skip condition")
 
-		return
+		return nil
 	}
 
 	if len(oldService.Status.LoadBalancer.Ingress) != 1 || len(newService.Status.LoadBalancer.Ingress) != 1 {
-		logrus.WithFields(logrus.Fields{
-			"service": newService.ObjectMeta.Name,
-		}).Fatalf("pifrost only supports single LB IP service objects both service objects have LB IP issues")
+		return errors.New("pifrost only supports single LB IP service objects both service objects have LB IP issues")
 	}
 
 	oldIP := oldService.Status.LoadBalancer.Ingress[0].IP
 	if len(oldIP) == 0 {
-		logrus.WithFields(logrus.Fields{
-			"service": oldService.ObjectMeta.Name,
-		}).Fatalf("Has annotation but does not have LoadBalancerIP")
+		return ErrSvcMissingLoadBalancerIP
 	}
 	newIP := newService.Status.LoadBalancer.Ingress[0].IP
 	if len(newIP) == 0 {
-		logrus.WithFields(logrus.Fields{
-			"service": newService.ObjectMeta.Name,
-		}).Fatalf("Has annotation but does not have LoadBalancerIP")
+		return ErrSvcMissingLoadBalancerIP
 	}
 
 	// Was unmanaged. Now wants to manage.
 	if !oldHasIt && newHasIt {
 		err := addServiceRecord(dnsProvider, newHost, newIP)
 		if err != nil {
-			logrus.WithFields(logrus.Fields{
-				"service": newService.ObjectMeta.Name,
-				"domain":  newHost,
-			}).Fatalf("Record creation error: %s", err)
+			return err
 		}
 
 		logrus.WithFields(logrus.Fields{
@@ -200,10 +195,7 @@ func updateServiceHandler(dnsProvider *provider.PiHoleRequest, client *kubernete
 		// Removing old host becuase that has the registered record.
 		err := delServiceRecord(dnsProvider, oldHost, oldIP)
 		if err != nil {
-			logrus.WithFields(logrus.Fields{
-				"service": oldService.ObjectMeta.Name,
-				"domain":  oldHost,
-			}).Fatalf("Record deletion error: %s", err)
+			return err
 		}
 
 		logrus.WithFields(logrus.Fields{
@@ -217,18 +209,12 @@ func updateServiceHandler(dnsProvider *provider.PiHoleRequest, client *kubernete
 		if oldHost != newHost || oldIP != newIP {
 			err := delServiceRecord(dnsProvider, oldHost, oldIP)
 			if err != nil {
-				logrus.WithFields(logrus.Fields{
-					"service": oldService.ObjectMeta.Name,
-					"domain":  oldHost,
-				}).Fatalf("Record deletion error: %s", err)
+				return err
 			}
 
 			err = addServiceRecord(dnsProvider, newHost, newIP)
 			if err != nil {
-				logrus.WithFields(logrus.Fields{
-					"service": newService.ObjectMeta.Name,
-					"domain":  newHost,
-				}).Fatalf("Record creation error: %s", err)
+				return err
 			}
 
 			logrus.WithFields(logrus.Fields{
@@ -239,5 +225,5 @@ func updateServiceHandler(dnsProvider *provider.PiHoleRequest, client *kubernete
 	}
 
 	// If any of the conditions above didn't evaluate... I don't care about it.
-	return
+	return nil
 }

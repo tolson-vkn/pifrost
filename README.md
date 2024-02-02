@@ -2,6 +2,9 @@
 
 An external DNS covering service and ingress objects for the upstream DNS; [pi-hole](https://pi-hole.net/).
 
+_It has come to my attention that [external-dns](https://github.com/kubernetes-sigs/external-dns) now supports pi-hole.
+It did not when I wrote this, so I wrote this... you may wnat to go check that out instead._
+
 ## Demo
 
 [![asciicast](https://asciinema.org/a/471236.svg)](https://asciinema.org/a/471236)
@@ -130,8 +133,3 @@ kubectl apply -f examples/ingress.yaml
 git checkout -- examples/lb-service
 kubectl delete -f examples/ingress.yaml
 ```
-
-## TODO
-
-* Better testing client-go bits.
-* Does not support `.Status.Loadbalancer[*].hostname` - It assumes infra like metalLB
