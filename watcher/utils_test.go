@@ -2,12 +2,35 @@ package watcher
 
 import (
 	"fmt"
-	"testing"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
+	"strings"
+	"testing"
 
 	v1 "k8s.io/api/core/v1"
 	v1Networking "k8s.io/api/networking/v1"
 )
+
+func startMockServer(t *testing.T) (*httptest.Server, string) {
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var mockResponse string
+		action := r.URL.Query().Get("action")
+		switch action {
+		case "get":
+			mockResponse = `{"data":[["example.com","192.168.1.2"]]}[]`
+		case "add":
+			mockResponse = `{"success":true,"message":""}{"FTLnotrunning":true}`
+		case "delete":
+			mockResponse = `{"success":true,"message":""}{"FTLnotrunning":true}`
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(mockResponse))
+	}))
+
+	return mockServer, strings.Replace(mockServer.URL, "http://", "", 1)
+}
 
 func TestGetSvcAnnotation(t *testing.T) {
 	annotations := map[string]string{

@@ -77,8 +77,7 @@ func CreateChangeSet(ip, d, action string) (*dnsChangeSet, error) {
 
 // Create a DNS provider request struct.
 func InitDNSProvider(insecure bool, host, token string) (*PiHoleRequest, error) {
-	// Check RFC1123 hostname
-	re := regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*)([^a-z0-9-]|$)$`)
+	re := regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*)([^a-z0-9-]|$)?(:\d+)?$`)
 	if match := re.MatchString(host); match == false {
 		return nil, fmt.Errorf("Could not parse pi-hole host/domain [%s]", host)
 	}

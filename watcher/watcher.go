@@ -11,10 +11,9 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
-
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/tolson-vkn/pifrost/provider"
 )
@@ -27,12 +26,12 @@ func Watch(dnsProvider *provider.PiHoleRequest, kconfig *rest.Config, ingressAnn
 	w := &sync.WaitGroup{}
 
 	w.Add(2)
-	go watcherIngress(dnsProvider, client, ingressAnnotation, ingressEIP, w)
-	go watcherService(dnsProvider, client, w)
+	go watcherIngress(client, dnsProvider, ingressAnnotation, ingressEIP, w)
+	go watcherService(client, dnsProvider, w)
 	w.Wait()
 }
 
-func watcherIngress(dnsProvider *provider.PiHoleRequest, client *kubernetes.Clientset, ingressAnnotation bool, ingressEIP string, w *sync.WaitGroup) {
+func watcherIngress(client kubernetes.Interface, dnsProvider *provider.PiHoleRequest, ingressAnnotation bool, ingressEIP string, w *sync.WaitGroup) {
 	logrus.Info("Starting ingress watcher...")
 	if !ingressAnnotation {
 		logrus.Info("Will only externalize dns for ingress with annotations.")
@@ -62,9 +61,14 @@ func watcherIngress(dnsProvider *provider.PiHoleRequest, client *kubernetes.Clie
 					logrus.Fatalf("Watch error: %s", err)
 				}
 
-				addIngressHandler(
-					ingressAnnotation, ingressEIP, client, dnsProvider, ingress,
+				err = addIngressHandler(
+					client, dnsProvider, ingressAnnotation, ingressEIP, ingress,
 				)
+				if err != nil {
+					logrus.WithFields(logrus.Fields{
+						"ingress": ingress.ObjectMeta.Name,
+					}).Fatalf("Watch error: %s", err)
+				}
 			},
 			DeleteFunc: func(obj interface{}) {
 				ingress, err := convertToIngress(obj)
@@ -72,9 +76,14 @@ func watcherIngress(dnsProvider *provider.PiHoleRequest, client *kubernetes.Clie
 					logrus.Fatalf("Watch error: %s", err)
 				}
 
-				delIngressHandler(
-					ingressAnnotation, ingressEIP, client, dnsProvider, ingress,
+				err = delIngressHandler(
+					client, dnsProvider, ingressAnnotation, ingressEIP, ingress,
 				)
+				if err != nil {
+					logrus.WithFields(logrus.Fields{
+						"ingress": ingress.ObjectMeta.Name,
+					}).Fatalf("Watch error: %s", err)
+				}
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
 				oldIngress, err := convertToIngress(oldObj)
@@ -87,10 +96,15 @@ func watcherIngress(dnsProvider *provider.PiHoleRequest, client *kubernetes.Clie
 					logrus.Fatalf("Watch error: %s", err)
 				}
 
-				updateIngressHandler(
-					ingressAnnotation, ingressEIP, client,
-					dnsProvider, oldIngress, newIngress,
+				err = updateIngressHandler(
+					client, dnsProvider, ingressAnnotation, ingressEIP,
+					oldIngress, newIngress,
 				)
+				if err != nil {
+					logrus.WithFields(logrus.Fields{
+						"ingress": oldIngress.ObjectMeta.Name,
+					}).Fatalf("Watch error: %s", err)
+				}
 			},
 		},
 	)
@@ -101,7 +115,7 @@ func watcherIngress(dnsProvider *provider.PiHoleRequest, client *kubernetes.Clie
 	}
 }
 
-func watcherService(dnsProvider *provider.PiHoleRequest, client *kubernetes.Clientset, w *sync.WaitGroup) {
+func watcherService(client kubernetes.Interface, dnsProvider *provider.PiHoleRequest, w *sync.WaitGroup) {
 	logrus.Info("Starting service watcher...")
 
 	watchlist := cache.NewListWatchFromClient(
@@ -119,10 +133,17 @@ func watcherService(dnsProvider *provider.PiHoleRequest, client *kubernetes.Clie
 			AddFunc: func(obj interface{}) {
 				service, err := convertToService(obj)
 				if err != nil {
-					logrus.Fatalf("Watch error: %s", err)
+					logrus.WithFields(logrus.Fields{
+						"service": service.ObjectMeta.Name,
+					}).Fatalf("Watch error: %s", err)
 				}
 
-				addServiceHandler(dnsProvider, client, service)
+				err = addServiceHandler(client, dnsProvider, service)
+				if err != nil {
+					logrus.WithFields(logrus.Fields{
+						"service": service.ObjectMeta.Name,
+					}).Fatalf("Watch error: %s", err)
+				}
 			},
 			DeleteFunc: func(obj interface{}) {
 				service, err := convertToService(obj)
@@ -130,7 +151,12 @@ func watcherService(dnsProvider *provider.PiHoleRequest, client *kubernetes.Clie
 					logrus.Fatalf("Watch error: %s", err)
 				}
 
-				delServiceHandler(dnsProvider, client, service)
+				err = delServiceHandler(client, dnsProvider, service)
+				if err != nil {
+					logrus.WithFields(logrus.Fields{
+						"service": service.ObjectMeta.Name,
+					}).Fatalf("Watch error: %s", err)
+				}
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
 				oldService, err := convertToService(oldObj)
@@ -143,7 +169,12 @@ func watcherService(dnsProvider *provider.PiHoleRequest, client *kubernetes.Clie
 					logrus.Fatalf("Watch error: %s", err)
 				}
 
-				updateServiceHandler(dnsProvider, client, oldService, newService)
+				err = updateServiceHandler(client, dnsProvider, oldService, newService)
+				if err != nil {
+					logrus.WithFields(logrus.Fields{
+						"service": oldService.ObjectMeta.Name,
+					}).Fatalf("Watch error: %s", err)
+				}
 			},
 		},
 	)
